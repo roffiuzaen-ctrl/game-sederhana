@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Tangkap Bintang</title>
+  <style>
+
+    /* ========== TAMPILAN DASAR ========== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a2e;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      color: white;
+    }
+
+    /* ========== JUDUL ========== */
+    h1 {
+      margin-top: 20px;
+      font-size: 26px;
+      color: #ffd700;
+      text-shadow: 0 0 10px #ffd700;
+    }
+
+    /* ========== INFO SKOR & WAKTU ========== */
+    .info {
+      display: flex;
+      gap: 30px;
+      margin: 14px 0;
+    }
+
+    .kotak-info {
+      background: #1a1a4e;
+      border: 2px solid #ffd700;
+      border-radius: 10px;
+      padding: 8px 18px;
+      text-align: center;
+      min-width: 90px;
+    }
+
+    .kotak-info .label {
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .kotak-info .nilai {
+      font-size: 24px;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    /* ========== AREA BERMAIN ========== */
+    #area-game {
+      width: 360px;
+      height: 460px;
+      background: #05051a;
+      border: 3px solid #3333aa;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ========== BINTANG (TARGET) ========== */
+    .bintang {
+      position: absolute;
+      font-size: 38px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s;
+      line-height: 1;
+    }
+
+    .bintang:active {
+      transform: scale(1.3);
+    }
+
+    /* ========== BOM (JANGAN DISENTUH) ========== */
+    .bom {
+      position: absolute;
+      font-size: 38px;
+      cursor: pointer;
+      user-select: none;
+      line-height: 1;
+    }
+
+    /* ========== TOMBOL ========== */
+    #tombol-mulai {
+      margin-top: 16px;
+      padding: 14px 40px;
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      color: #0a0a2e;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255,215,0,0.4);
+    }
+
+    #tombol-mulai:active {
+      transform: scale(0.96);
+    }
+
+    /* ========== PESAN TENGAH ========== */
+    #pesan {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 10;
+    }
+
+    #pesan h2 {
+      font-size: 22px;
+      color: #ffd700;
+      text-shadow: 0 0 10px #ffd700;
+    }
+
+    #pesan p {
+      margin-top: 6px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    /* ========== EFEK KLIK ========== */
+    .efek-plus {
+      position: absolute;
+      font-size: 20px;
+      font-weight: bold;
+      color: #00ff88;
+      pointer-events: none;
+      animation: naik 0.7s ease-out forwards;
+      z-index: 20;
+    }
+
+    .efek-minus {
+      position: absolute;
+      font-size: 20px;
+      font-weight: bold;
+      color: #ff4444;
+      pointer-events: none;
+      animation: naik 0.7s ease-out forwards;
+      z-index: 20;
+    }
+
+    @keyframes naik {
+      0%   { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-50px); }
+    }
+
+    /* ========== LEVEL BADGE ========== */
+    #level-badge {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    #level-badge span {
+      color: #ffd700;
+      font-weight: bold;
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1>⭐ Tangkap Bintang ⭐</h1>
+
+  <!-- INFO SKOR DAN WAKTU -->
+  <div class="info">
+    <div class="kotak-info">
+      <div class="label">SKOR</div>
+      <div class="nilai" id="skor">0</div>
+    </div>
+    <div class="kotak-info">
+      <div class="label">WAKTU</div>
+      <div class="nilai" id="waktu">30</div>
+    </div>
+    <div class="kotak-info">
+      <div class="label">REKOR</div>
+      <div class="nilai" id="rekor">0</div>
+    </div>
+  </div>
+
+  <!-- LEVEL -->
+  <div id="level-badge">Level: <span id="nama-level">Pemula</span></div>
+
+  <!-- AREA GAME -->
+  <div id="area-game">
+    <div id="pesan">
+      <h2>⭐ Tangkap Bintang</h2>
+      <p>Hindari bom 💣</p>
+      <p>Sentuh bintang ⭐ sebanyak mungkin!</p>
+    </div>
+  </div>
+
+  <!-- TOMBOL -->
+  <button id="tombol-mulai">▶ Mulai Game</button>
+
+  <script>
+
+    // ============================================
+    // VARIABEL UTAMA
+    // ============================================
+    let skor = 0;
+    let rekor = 0;
+    let waktuSisa = 30;
+    let sedangBerjalan = false;
+    let timerUtama;
+    let timerMunculBintang;
+    let timerMunculBom;
+    let levelSekarang = 1;
+
+    // ============================================
+    // ELEMEN HTML
+    // ============================================
+    const elSkor       = document.getElementById("skor");
+    const elWaktu      = document.getElementById("waktu");
+    const elRekor      = document.getElementById("rekor");
+    const elPesan      = document.getElementById("pesan");
+    const elNamaLevel  = document.getElementById("nama-level");
+    const areaGame     = document.getElementById("area-game");
+    const tombolMulai  = document.getElementById("tombol-mulai");
+
+    // ============================================
+    // DATA LEVEL
+    // ============================================
+    const dataLevel = [
+      { nama: "Pemula",    kecepatanBintang: 1400, kecepatanBom: 3000 },
+      { nama: "Mudah",     kecepatanBintang: 1100, kecepatanBom: 2500 },
+      { nama: "Normal",    kecepatanBintang:  900, kecepatanBom: 2000 },
+      { nama: "Sulit",     kecepatanBintang:  700, kecepatanBom: 1600 },
+      { nama: "Pakar",     kecepatanBintang:  500, kecepatanBom: 1200 },
+    ];
+
+    // ============================================
+    // FUNGSI: PERBARUI TAMPILAN SKOR & WAKTU
+    // ============================================
+    function perbaruiTampilan() {
+      elSkor.textContent  = skor;
+      elWaktu.textContent = waktuSisa;
+      elRekor.textContent = rekor;
+    }
+
+    // ============================================
+    // FUNGSI: CEK LEVEL BERDASARKAN SKOR
+    // ============================================
+    function cekLevel() {
+      let level = 0;
+      if (skor >= 40) level = 4;
+      else if (skor >= 30) level = 3;
+      else if (skor >= 20) level = 2;
+      else if (skor >= 10) level = 1;
+      else level = 0;
+
+      if (level !== levelSekarang) {
+        levelSekarang = level;
+        elNamaLevel.textContent = dataLevel[levelSekarang].nama;
+
+        // Restart timer dengan kecepatan baru
+        clearInterval(timerMunculBintang);
+        clearInterval(timerMunculBom);
+        mulaiMunculkanObjek();
+      }
+    }
+
+    // ============================================
+    // FUNGSI: MUNCULKAN POSISI ACAK
+    // ============================================
+    function posisiAcak(ukuran) {
+      const lebarArea  = areaGame.clientWidth  - ukuran;
+      const tinggiArea = areaGame.clientHeight - ukuran;
+      const x = Math.floor(Math.random() * lebarArea);
+      const y = Math.floor(Math.random() * tinggiArea);
+      return { x, y };
+    }
+
+    // ============================================
+    // FUNGSI: TAMPILKAN EFEK ANGKA (+1 atau -2)
+    // ============================================
+    function tampilkanEfek(x, y, teks, jenis) {
+      const efek = document.createElement("div");
+      efek.className = jenis === "plus" ? "efek-plus" : "efek-minus";
+      efek.textContent = teks;
+      efek.style.left = x + "px";
+      efek.style.top  = y + "px";
+      areaGame.appendChild(efek);
+      setTimeout(() => efek.remove(), 700);
+    }
+
+    // ============================================
+    // FUNGSI: BUAT BINTANG
+    // ============================================
+    function buatBintang() {
+      if (!sedangBerjalan) return;
+
+      const ukuran = 44;
+      const { x, y } = posisiAcak(ukuran);
+
+      const bintang = document.createElement("div");
+      bintang.className   = "bintang";
+      bintang.textContent = "⭐";
+      bintang.style.left  = x + "px";
+      bintang.style.top   = y + "px";
+
+      // Saat bintang disentuh
+      bintang.addEventListener("click", () => {
+        if (!sedangBerjalan) return;
+        skor++;
+        tampilkanEfek(x, y, "+1", "plus");
+        bintang.remove();
+        perbaruiTampilan();
+        cekLevel();
+      });
+
+      areaGame.appendChild(bintang);
+
+      // Bintang hilang otomatis setelah 2 detik
+      setTimeout(() => {
+        if (bintang.parentNode) bintang.remove();
+      }, 2000);
+    }
+
+    // ============================================
+    // FUNGSI: BUAT BOM
+    // ============================================
+    function buatBom() {
+      if (!sedangBerjalan) return;
+
+      const ukuran = 44;
+      const { x, y } = posisiAcak(ukuran);
+
+      const bom = document.createElement("div");
+      bom.className   = "bom";
+      bom.textContent = "💣";
+      bom.style.left  = x + "px";
+      bom.style.top   = y + "px";
+
+      // Saat bom disentuh
+      bom.addEventListener("click", () => {
+        if (!sedangBerjalan) return;
+        skor = Math.max(0, skor - 2);
+        tampilkanEfek(x, y, "-2", "minus");
+        bom.remove();
+        perbaruiTampilan();
+
+        // Getarkan area game
+        areaGame.style.border = "3px solid red";
+        setTimeout(() => {
+          areaGame.style.border = "3px solid #3333aa";
+        }, 300);
+      });
+
+      areaGame.appendChild(bom);
+
+      // Bom hilang otomatis
+      setTimeout(() => {
+        if (bom.parentNode) bom.remove();
+      }, 2500);
+    }
+
+    // ============================================
+    // FUNGSI: MULAI MUNCULKAN OBJEK
+    // ============================================
+    function mulaiMunculkanObjek() {
+      const level = dataLevel[levelSekarang];
+
+      timerMunculBintang = setInterval(() => {
+        buatBintang();
+      }, level.kecepatanBintang);
+
+      timerMunculBom = setInterval(() => {
+        buatBom();
+      }, level.kecepatanBom);
+    }
+
+    // ============================================
+    // FUNGSI: MULAI GAME
+    // ============================================
+    function mulaiGame() {
+      // Reset semua
+      skor         = 0;
+      waktuSisa    = 30;
+      levelSekarang = 0;
+      sedangBerjalan = true;
+
+      elNamaLevel.textContent = dataLevel[0].nama;
+      perbaruiTampilan();
+
+      // Sembunyikan pesan awal
+      elPesan.style.display = "none";
+
+      // Bersihkan area game
+      const objekLama = areaGame.querySelectorAll(".bintang, .bom");
+      objekLama.forEach(o => o.remove());
+
+      // Mulai hitung mundur
+      clearInterval(timerUtama);
+      timerUtama = setInterval(() => {
+        waktuSisa--;
+        perbaruiTampilan();
+
+        if (waktuSisa <= 0) {
+          selesaiGame();
+        }
+      }, 1000);
+
+      // Mulai munculkan bintang dan bom
+      clearInterval(timerMunculBintang);
+      clearInterval(timerMunculBom);
+      mulaiMunculkanObjek();
+
+      tombolMulai.textContent = "⏳ Sedang Bermain...";
+      tombolMulai.disabled = true;
+    }
+
+    // ============================================
+    // FUNGSI: SELESAI GAME
+    // ============================================
+    function selesaiGame() {
+      sedangBerjalan = false;
+
+      clearInterval(timerUtama);
+      clearInterval(timerMunculBintang);
+      clearInterval(timerMunculBom);
+
+      // Hapus semua bintang dan bom
+      const semua = areaGame.querySelectorAll(".bintang, .bom");
+      semua.forEach(o => o.remove());
+
+      // Update rekor
+      if (skor > rekor) {
+        rekor = skor;
+        perbaruiTampilan();
+      }
+
+      // Tentukan pesan hasil
+      let emoji  = "😊";
+      let kalimat = "Lumayan!";
+
+      if (skor >= 40) {
+        emoji = "🏆"; kalimat = "Luar biasa! Kamu Pakar!";
+      } else if (skor >= 30) {
+        emoji = "🎉"; kalimat = "Bagus sekali!";
+      } else if (skor >= 20) {
+        emoji = "😄"; kalimat = "Cukup baik!";
+      } else if (skor >= 10) {
+        emoji = "🙂"; kalimat = "Terus berlatih!";
+      } else {
+        emoji = "😅"; kalimat = "Coba lagi ya!";
+      }
+
+      // Tampilkan pesan hasil
+      elPesan.style.display = "block";
+      elPesan.innerHTML = `
+        <h2>${emoji} Game Selesai!</h2>
+        <p style="font-size:18px; margin-top:8px;">Skor: <strong>${skor}</strong></p>
+        <p style="margin-top:4px; color:#ffd700;">${kalimat}</p>
+        <p style="margin-top:4px; color:#888; font-size:13px;">Rekor: ${rekor}</p>
+      `;
+
+      tombolMulai.textContent = "🔄 Main Lagi";
+      tombolMulai.disabled = false;
+    }
+
+    // ============================================
+    // EVENT: TOMBOL MULAI
+    // ============================================
+    tombolMulai.addEventListener("click", mulaiGame);
+
+  </script>
+</body>
+  </html>
